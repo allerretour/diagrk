@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Classement des Matchs</title>
+    <style>
+        :root {
+            --bg-dark: #0f172a;
+            --card-bg: #1e293b;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --accent-blue: #3b82f6;
+            --gold: #f59e0b;
+            --silver: #94a3b8;
+            --bronze: #b45309;
+        }
+
+        body {
+            font-family: system-ui, -apple-system, sans-serif;
+            background-color: var(--bg-dark);
+            color: var(--text-main);
+            margin: 0;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 850px; /* Légèrement élargi pour accueillir la date */
+            margin: 0 auto;
+        }
+
+        h1 {
+            text-align: center;
+            color: var(--accent-blue);
+            margin-bottom: 30px;
+        }
+
+        .match-section {
+            background-color: var(--card-bg);
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 25px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+
+        .match-title {
+            font-size: 1.5rem;
+            border-bottom: 2px solid #334155;
+            padding-bottom: 10px;
+            margin-top: 0;
+            color: #60a5fa;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .leaderboard-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+            table-layout: fixed;
+        }
+
+        /* Redéfinition des largeurs pour intégrer la 4e colonne */
+        .leaderboard-table th:nth-child(1), 
+        .leaderboard-table td:nth-child(1) {
+            width: 10%;
+            text-align: left;
+        }
+
+        .leaderboard-table th:nth-child(2), 
+        .leaderboard-table td:nth-child(2) {
+            width: 40%;
+            text-align: left;
+        }
+
+        .leaderboard-table th:nth-child(3), 
+        .leaderboard-table td:nth-child(3) {
+            width: 30%;
+            text-align: left;
+            color: var(--text-muted);
+        }
+
+        .leaderboard-table th:nth-child(4), 
+        .leaderboard-table td:nth-child(4) {
+            width: 20%;
+            text-align: right;
+            padding-right: 15px;
+        }
+
+        .leaderboard-table th, .leaderboard-table td {
+            padding: 12px;
+            box-sizing: border-box;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis; /* Coupe proprement le texte trop long */
+        }
+
+        .leaderboard-table th {
+            color: var(--text-muted);
+            font-weight: 600;
+            border-bottom: 1px solid #334155;
+        }
+
+        .leaderboard-table tr:not(:last-child) td {
+            border-bottom: 1px solid #334155;
+        }
+
+        .rank {
+            font-weight: bold;
+        }
+
+        .rank-1 { color: var(--gold); }
+        .rank-2 { color: var(--silver); }
+        .rank-3 { color: var(--bronze); }
+
+        .score-cell {
+            font-weight: bold;
+        }
+
+        .date-cell {
+            font-size: 0.9rem;
+            color: var(--text-muted);
+        }
+
+        .no-data {
+            text-align: center;
+            padding: 40px;
+            background-color: var(--card-bg);
+            border-radius: 12px;
+            color: var(--text-muted);
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            font-size: 1.2rem;
+            color: var(--accent-blue);
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>🏆 Tableau des Classements</h1>
+    <div id="classement-container">
+        <div class="loading">Chargement des scores depuis Supabase...</div>
+    </div>
+</div>
+
+<script>
+    // ==========================================
+// CONFIGURATION CONFIG SUPABASE
+// ==========================================
+const SUPABASE_URL = "https://bjwizitnhvcuvphdvvxx.supabase.co";
+const SUPABASE_ANON_KEY = "sb_publishable_hSQEsCXaQs7O7W-lNCgmwA_gKZ_m-T_";
+const SUPABASE_TABLE_NAME = "matchs"; // Le nom de votre table dans Supabase
+
+
+    function echapperHTML(str) {
+        return str.replace(/[&<>'"]/g, 
+            tag => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[tag] || tag)
+        );
+    }
+
+    function extraireScoreNumerique(scoreTexte) {
+        if (!scoreTexte) return 0;
+        const nombreSains = scoreTexte.toString().replace('*', '').trim();
+        return parseInt(nombreSains) || 0;
+    }
+
+    // Transforme la date ISO de Supabase en format lisible en français
+    function formaterDate(dateString) {
+        if (!dateString) return "-";
+        try {
+            const date = new Date(dateString);
+            return date.toLocaleDateString('fr-FR', {
+                day: 'numeric',
+                month: 'short',
+                year: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+            }).replace(',', ' à');
+        } catch (e) {
+            return "-";
+        }
+    }
+
+    async function chargerClassement() {
+        const container = document.getElementById('classement-container');
+        const urlSupabase = `${SUPABASE_URL}/rest/v1/${SUPABASE_TABLE_NAME}?select=*`;
+
+        try {
+            const reponse = await fetch(urlSupabase, {
+                method: 'GET',
+                headers: {
+                    'apikey': SUPABASE_ANON_KEY,
+                    'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+                    'Content-Type': 'application/json'
+                }
+            });
+
+            if (!reponse.ok) throw new Error("Erreur lors de la récupération des données");
+
+            const donnees = await reponse.json();
+
+            if (donnees.length === 0) {
+                container.innerHTML = '<div class="no-data">Aucun score disponible pour le moment. Réessayez après avoir soumis une partie !</div>';
+                return;
+            }
+
+            // ==========================================
+// LOGIQUE DE TRI STRICTEMENT NUMÉRIQUE
+// ==========================================
+donnees.sort((a, b) => {
+    // 1. Tri par Code de Match (A-Z)
+    const matchA = a.code_match.toUpperCase();
+    const matchB = b.code_match.toUpperCase();
+    if (matchA !== matchB) return matchA.localeCompare(matchB);
+
+    // 2. Tri par Score Net (Partie numérique pure, ignorant l'astérisque)
+    const scoreA = extraireScoreNumerique(a.score_net);
+    const scoreB = extraireScoreNumerique(b.score_net);
+    
+    if (scoreB !== scoreA) {
+        return scoreB - scoreA; // Du plus grand au plus petit entier
+    }
+
+    // 3. En cas d'égalité numérique parfaite (ex: 42* contre 42),
+    // on trie par date de soumission (le plus récent en premier)
+    const dateA = new Date(a.created_at || 0);
+    const dateB = new Date(b.created_at || 0);
+    return dateB - dateA;
+});
+
+
+            const matchsRegroupes = {};
+            donnees.forEach(ligne => {
+                if (!matchsRegroupes[ligne.code_match]) {
+                    matchsRegroupes[ligne.code_match] = [];
+                }
+                matchsRegroupes[ligne.code_match].push(ligne);
+            });
+
+            container.innerHTML = '';
+
+            Object.keys(matchsRegroupes).forEach(codeMatch => {
+                const joueurs = matchsRegroupes[codeMatch];
+                
+                const section = document.createElement('div');
+                section.className = 'match-section';
+
+                let lignesHTML = '';
+                joueurs.forEach((joueur, index) => {
+                    const rang = index + 1;
+                    let classeRang = '';
+                    if (rang === 1) classeRang = 'rank-1';
+                    if (rang === 2) classeRang = 'rank-2';
+                    if (rang === 3) classeRang = 'rank-3';
+
+                    lignesHTML += `
+                        <tr>
+                            <td class="rank ${classeRang}">#${rang}</td>
+                            <td>${echapperHTML(joueur.nom_joueur)}</td>
+                            <td class="date-cell">${formaterDate(joueur.created_at)}</td>
+                            <td class="score-cell">${echapperHTML(joueur.score_net)}</td>
+                        </tr>
+                    `;
+                });
+
+                section.innerHTML = `
+                    <h2 class="match-title">
+                        <span>Match : ${echapperHTML(codeMatch)}</span>
+                        <span style="font-size: 1rem; color: var(--text-muted);">${joueurs.length} joueur(s)</span>
+                    </h2>
+                    <table class="leaderboard-table">
+                        <thead>
+                            <tr>
+                                <th>Rang</th>
+                                <th>Joueur</th>
+                                <th>Date de soumission</th>
+                                <th style="text-align: right;">Score Net</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${lignesHTML}
+                        </tbody>
+                    </table>
+                `;
+                container.appendChild(section);
+            });
+
+        } catch (erreur) {
+            console.error(erreur);
+            container.innerHTML = '<div class="no-data" style="color: #ef4444;">Impossible de charger le classement. Vérifiez vos clés Supabase ou la connexion réseau.</div>';
+        }
+    }
+
+    chargerClassement();
+</script>
+</body>
+</html>

@@ -60,7 +60,7 @@
             margin-top: 15px;
         }
 
-        /* --- CORRECTION IPHONE : Largeurs fixes stables en pixels --- */
+        /* --- CORRECTION IPHONE : Largeurs fixes stables --- */
         .leaderboard-table th:nth-child(1), 
         .leaderboard-table td:nth-child(1) {
             width: 50px;
@@ -123,6 +123,29 @@
             color: var(--text-muted);
         }
 
+        /* Masquage initial des lignes au-delà de la 3e place */
+        .row-hidden {
+            display: none !important;
+        }
+
+        .toggle-btn {
+            background-color: transparent;
+            border: 1px solid var(--accent-blue);
+            color: var(--accent-blue);
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            margin: 15px auto 0;
+            display: block;
+            font-size: 0.9rem;
+            font-weight: 500;
+            transition: all 0.2s ease;
+        }
+
+        .toggle-btn:hover {
+            background-color: rgba(59, 130, 246, 0.1);
+        }
+
         .no-data {
             text-align: center;
             padding: 40px;
@@ -150,30 +173,30 @@
 
 <script>
     // ==========================================
-    // CONFIGURATION CONFIG SUPABASE
-    // ==========================================
-    const SUPABASE_URL = "https://bjwizitnhvcuvphdvvxx.supabase.co";
-    const SUPABASE_ANON_KEY = "sb_publishable_hSQEsCXaQs7O7W-lNCgmwA_gKZ_m-T_";
-    const SUPABASE_TABLE_NAME = "matchs";
-
+// CONFIGURATION CONFIG SUPABASE
+// ==========================================
+const SUPABASE_URL = "https://bjwizitnhvcuvphdvvxx.supabase.co";
+const SUPABASE_ANON_KEY = "sb_publishable_hSQEsCXaQs7O7W-lNCgmwA_gKZ_m-T_";
+const SUPABASE_TABLE_NAME = "matchs"; // Le nom de votre table dans Supabase
 
     function echapperHTML(str) {
         if (!str) return "";
-        return str.replace(/[&<>'"]/g, 
-            tag => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[tag] || tag)
-        );
+        return str.replace(/[&<>'"]/g, function(tag) {
+            var equivalences = { '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' };
+            return equivalences[tag] || tag;
+        });
     }
 
     function extraireScoreNumerique(scoreTexte) {
         if (!scoreTexte) return 0;
-        const nombreSains = scoreTexte.toString().replace('*', '').trim();
-        return parseInt(nombreSains) || 0;
+        var nombreSains = scoreTexte.toString().replace('*', '').trim();
+        return parseInt(nombreSains, 10) || 0;
     }
 
     function formaterDate(dateString) {
         if (!dateString) return "-";
         try {
-            const date = new Date(dateString);
+            var date = new Date(dateString);
             return date.toLocaleDateString('fr-FR', {
                 day: 'numeric',
                 month: 'short',
@@ -185,51 +208,75 @@
         }
     }
 
+        // Gestion de l'affichage accordéon globale (Correction du bug NodeList)
+    window.basculerAffichageMatch = function(codeMatch, totalJoueurs) {
+        var tbody = document.getElementById('table-body-' + codeMatch);
+        var btn = document.getElementById('btn-' + codeMatch);
+        if (!tbody || !btn) return;
+
+        var lignesMasquees = tbody.querySelectorAll('.js-row-extra');
+        if (lignesMasquees.length === 0) return;
+
+        // CORRECTION : On accède à classList sur le premier élément [0] et non sur la liste entière
+        var estMasque = lignesMasquees[0].classList.contains('row-hidden');
+        
+        lignesMasquees.forEach(function(ligne) {
+            if (estMasque) {
+                ligne.classList.remove('row-hidden');
+            } else {
+                ligne.classList.add('row-hidden');
+            }
+        });
+
+        if (estMasque) {
+            btn.textContent = "Voir moins";
+        } else {
+            var nbRestants = totalJoueurs - 3;
+            btn.textContent = "Voir plus (+" + nbRestants + ")";
+        }
+    };
+
+
     async function chargerClassement() {
-        const container = document.getElementById('classement-container');
-        const urlSupabase = `${SUPABASE_URL}/rest/v1/${SUPABASE_TABLE_NAME}?select=*`;
+        var container = document.getElementById('classement-container');
+        var urlSupabase = SUPABASE_URL + '/rest/v1/' + SUPABASE_TABLE_NAME + '?select=*';
 
         try {
-            const reponse = await fetch(urlSupabase, {
+            var reponse = await fetch(urlSupabase, {
                 method: 'GET',
                 headers: {
                     'apikey': SUPABASE_ANON_KEY,
-                    'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+                    'Authorization': 'Bearer ' + SUPABASE_ANON_KEY,
                     'Content-Type': 'application/json'
                 }
             });
 
-            if (!reponse.ok) throw new Error("Erreur lors de la récupération des données");
+            if (!reponse.ok) throw new Error("Erreur de récupération");
 
-            const donnees = await reponse.json();
+            var donnees = await reponse.json();
 
             if (donnees.length === 0) {
-                container.innerHTML = '<div class="no-data">Aucun score disponible pour le moment. Réessayez après avoir soumis une partie !</div>';
+                container.innerHTML = '<div class="no-data">Aucun score disponible pour le moment.</div>';
                 return;
             }
 
-            // ==========================================
-            // LOGIQUE DE TRI STRICTEMENT NUMÉRIQUE
-            // ==========================================
-            donnees.sort((a, b) => {
-                const matchA = a.code_match.toUpperCase();
-                const matchB = b.code_match.toUpperCase();
+            // Tri strict
+            donnees.sort(function(a, b) {
+                var matchA = a.code_match.toUpperCase();
+                var matchB = b.code_match.toUpperCase();
                 if (matchA !== matchB) return matchA.localeCompare(matchB);
 
-                const scoreA = extraireScoreNumerique(a.score_net);
-                const scoreB = extraireScoreNumerique(b.score_net);
-                
-                if (scoreB !== scoreA) {
-                    return scoreB - scoreA;
-                }
+                var scoreA = extraireScoreNumerique(a.score_net);
+                var scoreB = extraireScoreNumerique(b.score_net);
+                if (scoreB !== scoreA) return scoreB - scoreA;
 
-                const dateA = new Date(a.created_at || 0);
-                const dateB = new Date(b.created_at || 0);
+                var dateA = new Date(a.created_at || 0);
+                var dateB = new Date(b.created_at || 0);
                 return dateB - dateA;
             });
 
-            const matchsRegroupes = {};
-            donnees.forEach(ligne => {
+            var matchsRegroupes = {};
+            donnees.forEach(function(ligne) {
                 if (!matchsRegroupes[ligne.code_match]) {
                     matchsRegroupes[ligne.code_match] = [];
                 }
@@ -238,54 +285,59 @@
 
             container.innerHTML = '';
 
-            Object.keys(matchsRegroupes).forEach(codeMatch => {
-                const joueurs = matchsRegroupes[codeMatch];
+            Object.keys(matchsRegroupes).forEach(function(codeMatch) {
+                var joueurs = matchsRegroupes[codeMatch];
+                var premierJoueur = joueurs[0] || {};
+                var nbManches = premierJoueur.nb_manches ? premierJoueur.nb_manches : '-';
+                var aPlusDeTroisJoueurs = joueurs.length > 3;
                 
-                // Récupération de nb_manches sur la première ligne disponible du groupe
-                const nbManches = joueurs && joueurs[0] && joueurs[0].nb_manches ? joueurs[0].nb_manches : '-';
-                
-                const section = document.createElement('div');
+                var section = document.createElement('div');
                 section.className = 'match-section';
 
-                section.innerHTML = `
-                    <div class="match-title">
-                        <span>Match : ${echapperHTML(codeMatch)}</span>
-                        <span style="font-size: 0.95rem; color: var(--text-muted); font-weight: normal;">
-                            (${nbManches} manches)
-                        </span>
-                    </div>
-                    <table class="leaderboard-table">
-                        <thead>
-                            <tr>
-                                <th>Pos</th>
-                                <th>Joueur</th>
-                                <th>Date</th>
-                                <th style="text-align: right; padding-right: 15px;">Score</th>
-                            </tr>
-                        </thead>
-                        <tbody id="table-body-${codeMatch}"></tbody>
-                    </table>
-                `;
+                var htmlStructure = '';
+                htmlStructure += '<div class="match-title">';
+                htmlStructure += '  <span>Match : ' + echapperHTML(codeMatch) + '</span>';
+                htmlStructure += '  <span style="font-size: 0.95rem; color: var(--text-muted); font-weight: normal;">(' + nbManches + ' manches)</span>';
+                htmlStructure += '</div>';
+                htmlStructure += '<table class="leaderboard-table">';
+                htmlStructure += '  <thead>';
+                htmlStructure += '    <tr>';
+                htmlStructure += '      <th>Pos</th>';
+                htmlStructure += '      <th>Joueur</th>';
+                htmlStructure += '      <th>Date</th>';
+                htmlStructure += '      <th style="text-align: right; padding-right: 15px;">Score</th>';
+                htmlStructure += '    </tr>';
+                htmlStructure += '  </thead>';
+                htmlStructure += '  <tbody id="table-body-' + codeMatch + '"></tbody>';
+                htmlStructure += '</table>';
+                
+                if (aPlusDeTroisJoueurs) {
+    var nbRestants = joueurs.length - 3;
+    htmlStructure += '<button id="btn-' + codeMatch + '" class="toggle-btn" onclick="basculerAffichageMatch(\'' + codeMatch + '\', ' + joueurs.length + ')">Voir plus (+' + nbRestants + ')</button>';
+}
 
+
+                section.innerHTML = htmlStructure;
                 container.appendChild(section);
-                const tbody = document.getElementById(`table-body-${codeMatch}`);
 
-                let lignesHTML = '';
-                joueurs.forEach((joueur, index) => {
-                    const rang = index + 1;
-                    let classeRang = '';
+                var tbody = document.getElementById('table-body-' + codeMatch);
+                var lignesHTML = '';
+
+                joueurs.forEach(function(joueur, index) {
+                    var rang = index + 1;
+                    var classeRang = '';
                     if (rang === 1) classeRang = 'rank-1';
                     if (rang === 2) classeRang = 'rank-2';
                     if (rang === 3) classeRang = 'rank-3';
 
-                    lignesHTML += `
-                        <tr>
-                            <td class="rank ${classeRang}">#${rang}</td>
-                            <td>${echapperHTML(joueur.nom_joueur)}</td>
-                            <td class="date-cell">${formaterDate(joueur.created_at)}</td>
-                            <td class="score-cell" style="text-align: right; padding-right: 15px;">${echapperHTML(joueur.score_net)}</td>
-                        </tr>
-                    `;
+                    var classeExtra = rang > 3 ? 'js-row-extra row-hidden' : '';
+
+                    lignesHTML += '<tr class="' + classeExtra + '">';
+                    lignesHTML += '  <td class="rank ' + classeRang + '">#' + rang + '</td>';
+                    lignesHTML += '  <td>' + echapperHTML(joueur.nom_joueur) + '</td>';
+                    lignesHTML += '  <td class="date-cell">' + formaterDate(joueur.created_at) + '</td>';
+                    lignesHTML += '  <td class="score-cell" style="text-align: right; padding-right: 15px;">' + echapperHTML(joueur.score_net) + '</td>';
+                    lignesHTML += '</tr>';
                 });
                 
                 tbody.innerHTML = lignesHTML;
@@ -301,3 +353,4 @@
 </script>
 </body>
 </html>
+

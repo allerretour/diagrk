@@ -365,12 +365,15 @@
             
             { cle: 'score_net', label: 'Score Net', icone: '🎯', vedette: true },
             { cle: 'score_brut', label: 'Score Brut', icone: '📊', vedette: true },
+			{ cle: 'zones_arrivee', label: 'Zones Arrivée', icone: '🏁' },
+			{ cle: 'manches_parfaites', label: 'Manches Parfaites', icone: '⭐' },
             { cle: 'billes_empochees', label: 'Billes Empochées', icone: '🎱' },
-            { cle: 'manches_parfaites', label: 'Manches Parfaites', icone: '⭐' },
-            { cle: 'zones_arrivee', label: 'Zones Arrivée', icone: '🏁' },
+            
+            
             { cle: 'fautes', label: 'Fautes', icone: '⚠️' },
             { cle: 'ajust_table', label: 'Ajust. Table', icone: '🔧', booleen: true },
-            { cle: 'ajust_poche', label: 'Ajust. Poche', icone: '📐', booleen: true }
+            { cle: 'ajust_poche', label: 'Ajust. Poche', icone: '📐', booleen: true },
+			{ cle: 'nb_manches', label: 'Nb Manches', icone: '🔄' }
         ];
 
         // Étape 4 : Création de la nouvelle ligne de tableau pour accueillir les tuiles
@@ -465,21 +468,36 @@
                 return groupes[matchB].length - groupes[matchA].length;
             });
 
-            // Génération de l'affichage pour chaque match (dans le nouvel ordre trié)
+                        // Génération de l'affichage pour chaque match (dans le nouvel ordre trié par nb de joueurs)
             codesMatchsTries.forEach(function(codeMatch) {
                 var listeJoueurs = groupes[codeMatch];
 
-                // Tri décroissant interne des joueurs par score_net numérique
+                // --- APPLICATION DU TRI MULTICRITÈRE ---
                 listeJoueurs.sort(function(a, b) {
-                    return extraireScoreNumerique(b.score_net) - extraireScoreNumerique(a.score_net);
+                    var diffScoreNet = extraireScoreNumerique(b.score_net) - extraireScoreNumerique(a.score_net);
+                    if (diffScoreNet !== 0) return diffScoreNet;
+
+                    var diffZones = (parseInt(b.zones_arrivee, 10) || 0) - (parseInt(a.zones_arrivee, 10) || 0);
+                    if (diffZones !== 0) return diffZones;
+
+                    var diffManches = (parseInt(b.manches_parfaites, 10) || 0) - (parseInt(a.manches_parfaites, 10) || 0);
+                    if (diffManches !== 0) return diffManches;
+
+                    var diffBilles = (parseInt(b.billes_empochees, 10) || 0) - (parseInt(a.billes_empochees, 10) || 0);
+                    if (diffBilles !== 0) return diffBilles;
+
+                    return (parseInt(a.fautes, 10) || 0) - (parseInt(b.fautes, 10) || 0);
                 });
 
                 var matchSection = document.createElement('div');
                 matchSection.className = 'match-section';
                 matchSection.id = 'section-' + codeMatch;
 
-                // Affichage optionnel du nombre total de participants à côté du titre du match
-                var html = '<h2 class="match-title">Match : ' + echapperHTML(codeMatch) + ' <span style="font-size: 0.9rem; color: var(--text-muted); font-weight: normal;">(' + listeJoueurs.length + ' joueurs)</span></h2>';
+                // --- AJOUT : Récupération du nombre de manches ---
+                var nbManches = listeJoueurs[0] && listeJoueurs[0].nb_manches ? listeJoueurs[0].nb_manches : '-';
+
+                // Titre mis à jour avec le code du match, le nombre de manches et le nombre de joueurs
+                var html = '<h2 class="match-title">Match : ' + echapperHTML(codeMatch) + ' <span style="font-size: 0.9rem; color: var(--text-muted); font-weight: normal;">(' + nbManches + ' manches &bull; ' + listeJoueurs.length + ' joueurs)</span></h2>';
                 html += '<table class="leaderboard-table">';
                 html += '<thead><tr><th>Pos</th><th>Joueur</th><th>Date</th><th style="text-align:right; padding-right:15px;">Score</th></tr></thead>';
                 html += '<tbody id="table-body-' + codeMatch + '">';
@@ -490,11 +508,8 @@
                     var classeRang = rang <= 3 ? 'rank rank-' + rang : '';
                     
                     var dateFormatee = joueur.created_at ? formaterDate(joueur.created_at) : (joueur.date ? formaterDate(joueur.date) : '-');
-
-                    // ID unique de ligne
                     var rowId = 'row-' + codeMatch + '-' + rang;
 
-                    // Ajout de l'événement onclick appelant afficherDetailsJoueur()
                     html += '<tr id="' + rowId + '" class="' + classeMasquee + '" onclick="afficherDetailsJoueur(\'' + rowId + '\', ' + joueur._indexGlobal + ')">';
                     html += '<td class="' + classeRang + '">' + rang + '</td>';
                     html += '<td><strong>' + echapperHTML(joueur.nom_joueur) + '</strong></td>';
@@ -514,11 +529,13 @@
                 container.appendChild(matchSection);
             });
 
+
         } catch (erreur) {
             console.error(erreur);
             container.innerHTML = '<div class="no-data" style="color: #f87171;">Erreur lors du chargement des scores.</div>';
         }
     }
+
 
 
     document.addEventListener('DOMContentLoaded', chargerClassement);

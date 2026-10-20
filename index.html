@@ -4,7 +4,269 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Classement des Matchs</title>
-    <link rel="stylesheet" href="style.css">
+    <style>
+        :root {
+            --bg-dark: #0f172a;
+            --card-bg: #1e293b;
+            --card-bg-light: #334155;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --accent-blue: #3b82f6;
+            --accent-hover: #60a5fa;
+            --gold: #f59e0b;
+            --silver: #94a3b8;
+            --bronze: #b45309;
+        }
+
+        body {
+            font-family: system-ui, -apple-system, sans-serif;
+            background-color: var(--bg-dark);
+            color: var(--text-main);
+            margin: 0;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 850px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            text-align: center;
+            color: var(--accent-blue);
+            margin-bottom: 30px;
+        }
+
+        .match-section {
+            background-color: var(--card-bg);
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 25px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+
+        .match-title {
+            font-size: 1.5rem;
+            border-bottom: 2px solid #334155;
+            padding-bottom: 10px;
+            margin-top: 0;
+            color: #60a5fa;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .leaderboard-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+        }
+
+        /* --- CORRECTION IPHONE : Largeurs fixes stables --- */
+        .leaderboard-table th:nth-child(1), 
+        .leaderboard-table td:nth-child(1) {
+            width: 50px;
+            min-width: 50px;
+            text-align: left;
+            flex-shrink: 0;
+        }
+
+        .leaderboard-table th:nth-child(2), 
+        .leaderboard-table td:nth-child(2) {
+            text-align: left;
+        }
+
+        .leaderboard-table th:nth-child(3), 
+        .leaderboard-table td:nth-child(3) {
+            width: 130px;
+            text-align: left;
+            color: var(--text-muted);
+        }
+
+        .leaderboard-table th:nth-child(4), 
+        .leaderboard-table td:nth-child(4) {
+            width: 80px;
+            text-align: right;
+            padding-right: 15px;
+        }
+
+        .leaderboard-table th, .leaderboard-table td {
+            padding: 12px 6px;
+            box-sizing: border-box;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .leaderboard-table th {
+            color: var(--text-muted);
+            font-weight: 600;
+            border-bottom: 1px solid #334155;
+        }
+
+        /* Ligne de tableau cliquable */
+        .leaderboard-table tbody tr {
+            cursor: pointer;
+            transition: background-color 0.2s ease;
+        }
+
+        .leaderboard-table tbody tr:hover {
+            background-color: rgba(255, 255, 255, 0.05);
+        }
+
+        .leaderboard-table tr:not(:last-child) td {
+            border-bottom: 1px solid #334155;
+        }
+
+        .rank {
+            font-weight: bold;
+        }
+
+        .rank-1 { color: var(--gold); }
+        .rank-2 { color: var(--silver); }
+        .rank-3 { color: var(--bronze); }
+
+        .score-cell {
+            font-weight: bold;
+        }
+
+        .date-cell {
+            font-size: 0.9rem;
+            color: var(--text-muted);
+        }
+
+        .row-hidden {
+            display: none !important;
+        }
+
+        .toggle-btn {
+            background-color: transparent;
+            border: 1px solid var(--accent-blue);
+            color: var(--accent-blue);
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            margin: 15px auto 0;
+            display: block;
+            font-size: 0.9rem;
+            font-weight: 500;
+            transition: all 0.2s ease;
+        }
+		
+		.row-details-temporaire {
+    animation: fadeIn 0.25s ease-out;
+}
+
+
+        .toggle-btn:hover {
+            background-color: rgba(59, 130, 246, 0.1);
+        }
+
+        /* --- STYLES ZONE DES TUILES DE DÉTAILS --- */
+        .details-container {
+            margin-top: 20px;
+            padding: 20px;
+            background-color: #111827;
+            border: 1px solid #334155;
+            border-radius: 10px;
+            animation: fadeIn 0.3s ease;
+        }
+
+        .details-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            border-bottom: 1px solid #334155;
+            padding-bottom: 8px;
+        }
+
+        .details-header h3 {
+            margin: 0;
+            font-size: 1.1rem;
+            color: var(--accent-hover);
+        }
+
+        .close-details-btn {
+            background: transparent;
+            border: none;
+            color: var(--text-muted);
+            cursor: pointer;
+            font-size: 1.2rem;
+        }
+
+        .close-details-btn:hover {
+            color: #ef4444;
+        }
+
+        .grille-tuiles {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+            gap: 12px;
+        }
+
+        .tuile {
+            background-color: var(--card-bg);
+            border: 1px solid #2d3748;
+            border-radius: 8px;
+            padding: 12px;
+            display: flex;
+            align-items: center;
+        }
+
+        .tuile-vedette {
+            border-color: var(--accent-blue);
+            background-color: rgba(59, 130, 246, 0.05);
+        }
+
+        .tuile-icone {
+            font-size: 1.5rem;
+            margin-right: 12px;
+        }
+
+        .tuile-contenu {
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .tuile-label {
+            font-size: 0.7rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .tuile-valeur {
+            font-size: 1rem;
+            font-weight: bold;
+            color: var(--text-main);
+            margin-top: 2px;
+            text-overflow: ellipsis;
+            overflow: hidden;
+            white-space: nowrap;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-5px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .no-data {
+            text-align: center;
+            padding: 40px;
+            background-color: var(--card-bg);
+            border-radius: 12px;
+            color: var(--text-muted);
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            font-size: 1.2rem;
+            color: var(--accent-blue);
+        }
+    </style>
 </head>
 <body>
 
@@ -15,6 +277,269 @@
     </div>
 </div>
 
-<script src="script.js"></script>
+<script>
+    const SUPABASE_URL = "https://bjwizitnhvcuvphdvvxx.supabase.co";
+    const SUPABASE_ANON_KEY = "sb_publishable_hSQEsCXaQs7O7W-lNCgmwA_gKZ_m-T_";
+    const SUPABASE_TABLE_NAME = "matchs";
+
+    // Stockage global des données brutes pour les tuiles au clic
+    let donneesGlobalesMatchs = [];
+
+    function echapperHTML(str) {
+        if (!str) return "";
+        return str.replace(/[&<>'"]/g, function(tag) {
+            var equivalences = { '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' };
+            return equivalences[tag] || tag;
+        });
+    }
+
+    function extraireScoreNumerique(scoreTexte) {
+        if (!scoreTexte) return 0;
+        var nombreSains = scoreTexte.toString().replace('*', '').trim();
+        return parseInt(nombreSains, 10) || 0;
+    }
+
+    function formaterDate(dateString) {
+        if (!dateString) return "-";
+        try {
+            var date = new Date(dateString);
+            return date.toLocaleDateString('fr-FR', {
+                day: 'numeric',
+                month: 'short',
+                hour: '2-digit',
+                minute: '2-digit'
+            }).replace(',', ' à');
+        } catch (e) {
+            return "-";
+        }
+    }
+
+    window.basculerAffichageMatch = function(codeMatch, totalJoueurs) {
+        var tbody = document.getElementById('table-body-' + codeMatch);
+        var btn = document.getElementById('btn-' + codeMatch);
+        if (!tbody || !btn) return;
+
+        var lignesMasquees = tbody.querySelectorAll('.js-row-extra');
+        if (lignesMasquees.length === 0) return;
+
+        var estMasque = lignesMasquees[0].classList.contains('row-hidden');
+        
+        lignesMasquees.forEach(function(ligne) {
+            if (estMasque) {
+                ligne.classList.remove('row-hidden');
+            } else {
+                ligne.classList.add('row-hidden');
+            }
+        });
+
+        if (estMasque) {
+            btn.textContent = "Voir moins";
+        } else {
+            var nbRestants = totalJoueurs - 3;
+            btn.textContent = "Voir plus (+" + nbRestants + ")";
+        }
+    };
+
+        // --- FONCTION DE GÉNÉRATION DES TUILES DIRECTEMENT SOUS LA LIGNE ---
+    window.afficherDetailsJoueur = function(idUniqueRow, indexGlobal) {
+        const item = donneesGlobalesMatchs[indexGlobal];
+        if (!item) return;
+
+        // Étape 1 : Récupérer la ligne du joueur qui vient d'être cliquée
+        const ligneJoueur = document.getElementById(idUniqueRow);
+        if (!ligneJoueur) return;
+
+        // Étape 2 : Supprimer une ancienne boîte de détails déjà ouverte dans ce tableau pour éviter les doublons
+        const tableauBody = ligneJoueur.parentElement;
+        const ancienDetail = tableauBody.querySelector('.row-details-temporaire');
+        
+        // Si on clique sur la même ligne alors que le détail est déjà ouvert, on le ferme (effet bascule)
+        if (ancienDetail && ancienDetail.previousElementSibling === ligneJoueur) {
+            ancienDetail.remove();
+            return;
+        }
+        if (ancienDetail) ancienDetail.remove();
+
+        // Étape 3 : Configuration de vos champs mis à jour
+        const configChamps = [
+            
+            { cle: 'score_net', label: 'Score Net', icone: '🎯', vedette: true },
+            { cle: 'score_brut', label: 'Score Brut', icone: '📊' },
+			{ cle: 'zones_arrivee', label: 'Zones Arrivée', icone: '🏁' },
+			{ cle: 'manches_parfaites', label: 'Manches Parfaites', icone: '⭐' },
+            { cle: 'billes_empochees', label: 'Billes Empochées', icone: '🎱' },
+            
+            
+            { cle: 'fautes', label: 'Fautes', icone: '⚠️' },
+            { cle: 'ajust_table', label: 'Ajust. Table', icone: '🔧', booleen: true },
+            { cle: 'ajust_poche', label: 'Ajust. Poche', icone: '📐', booleen: true },
+			{ cle: 'nb_manches', label: 'Nb Manches', icone: '🔄' }
+        ];
+
+        // Étape 4 : Création de la nouvelle ligne de tableau pour accueillir les tuiles
+        const nouvelleLigne = document.createElement('tr');
+        nouvelleLigne.className = 'row-details-temporaire';
+
+        let htmlTuiles = `
+            <td colspan="4" style="padding: 15px; background-color: #111827; border-bottom: 1px solid #334155;">
+                <div class="details-container" style="margin-top: 0; padding: 10px; background: transparent; border: none;">
+                    <div class="details-header">
+                        <h3>📈 Statistiques détaillées</h3>
+                        <button class="close-details-btn" onclick="this.closest('.row-details-temporaire').remove()">×</button>
+                    </div>
+                    <div class="grille-tuiles">
+        `;
+
+        configChamps.forEach(conf => {
+            let val = item[conf.cle];
+            if (conf.booleen) {
+                val = val ? '✅ Oui' : '❌ Non';
+            } else if (val === null || val === undefined || val === '') {
+                val = '-';
+            }
+
+            htmlTuiles += `
+                <div class="tuile ${conf.vedette ? 'tuile-vedette' : ''}">
+                    <div class="tuile-icone">${conf.icone}</div>
+                    <div class="tuile-contenu">
+                        <span class="tuile-label">${conf.label}</span>
+                        <span class="tuile-valeur" title="${echapperHTML(val.toString())}">${echapperHTML(val.toString())}</span>
+                    </div>
+                </div>
+            `;
+        });
+
+        htmlTuiles += `
+                    </div>
+                </div>
+            </td>
+        `;
+        
+        nouvelleLigne.innerHTML = htmlTuiles;
+
+        // Étape 5 : Insérer graphiquement la nouvelle ligne juste après la ligne cliquée
+        ligneJoueur.insertAdjacentElement('afterend', nouvelleLigne);
+        nouvelleLigne.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    };
+
+    async function chargerClassement() {
+        var container = document.getElementById('classement-container');
+        var urlSupabase = SUPABASE_URL + '/rest/v1/' + SUPABASE_TABLE_NAME + '?select=*';
+
+        try {
+            var reponse = await fetch(urlSupabase, {
+                method: 'GET',
+                headers: {
+                    'apikey': SUPABASE_ANON_KEY,
+                    'Authorization': 'Bearer ' + SUPABASE_ANON_KEY,
+                    'Content-Type': 'application/json'
+                }
+            });
+
+            if (!reponse.ok) throw new Error("Erreur réseau");
+
+            donneesGlobalesMatchs = await reponse.json();
+
+            if (donneesGlobalesMatchs.length === 0) {
+                container.innerHTML = '<div class="no-data">Aucun score disponible.</div>';
+                return;
+            }
+
+                        // Regroupement par code_match
+            var groupes = {};
+            donneesGlobalesMatchs.forEach(function(item, index) {
+                // On stocke l'index global d'origine de l'objet pour s'y retrouver au clic
+                item._indexGlobal = index; 
+
+                if (!groupes[item.code_match]) {
+                    groupes[item.code_match] = [];
+                }
+                groupes[item.code_match].push(item);
+            });
+
+            container.innerHTML = "";
+
+            // --- NOUVEAU : Tri des blocs de matchs par nombre de joueurs ---
+            // On extrait les codes de match dans un tableau pour pouvoir les trier
+            var codesMatchsTries = Object.keys(groupes);
+            
+            codesMatchsTries.sort(function(matchA, matchB) {
+                // Tri décroissant : le match avec le plus de joueurs (longueur du tableau) passe devant
+                return groupes[matchB].length - groupes[matchA].length;
+            });
+
+                        // Génération de l'affichage pour chaque match (dans le nouvel ordre trié par nb de joueurs)
+            codesMatchsTries.forEach(function(codeMatch) {
+                var listeJoueurs = groupes[codeMatch];
+
+                // --- APPLICATION DU TRI MULTICRITÈRE ---
+                listeJoueurs.sort(function(a, b) {
+                    var diffScoreNet = extraireScoreNumerique(b.score_net) - extraireScoreNumerique(a.score_net);
+                    if (diffScoreNet !== 0) return diffScoreNet;
+
+                    var diffZones = (parseInt(b.zones_arrivee, 10) || 0) - (parseInt(a.zones_arrivee, 10) || 0);
+                    if (diffZones !== 0) return diffZones;
+
+                    var diffManches = (parseInt(b.manches_parfaites, 10) || 0) - (parseInt(a.manches_parfaites, 10) || 0);
+                    if (diffManches !== 0) return diffManches;
+
+                    var diffBilles = (parseInt(b.billes_empochees, 10) || 0) - (parseInt(a.billes_empochees, 10) || 0);
+                    if (diffBilles !== 0) return diffBilles;
+
+                    return (parseInt(a.fautes, 10) || 0) - (parseInt(b.fautes, 10) || 0);
+                });
+
+                var matchSection = document.createElement('div');
+                matchSection.className = 'match-section';
+                matchSection.id = 'section-' + codeMatch;
+
+                // --- AJOUT : Récupération du nombre de manches ---
+                var nbManches = listeJoueurs[0] && listeJoueurs[0].nb_manches ? listeJoueurs[0].nb_manches : '-';
+
+                // Titre mis à jour avec le code du match, le nombre de manches et le nombre de joueurs
+                var html = '<h2 class="match-title">Match : ' + echapperHTML(codeMatch) + ' <span style="font-size: 0.9rem; color: var(--text-muted); font-weight: normal;">(' + nbManches + ' manches &bull; ' + listeJoueurs.length + ' joueurs)</span></h2>';
+                html += '<table class="leaderboard-table">';
+                html += '<thead><tr><th>Pos</th><th>Joueur</th><th>Date</th><th style="text-align:right; padding-right:15px;">Score</th></tr></thead>';
+                html += '<tbody id="table-body-' + codeMatch + '">';
+
+                listeJoueurs.forEach(function(joueur, idx) {
+                    var rang = idx + 1;
+                    var classeMasquee = rang > 3 ? 'row-hidden js-row-extra' : '';
+                    var classeRang = rang <= 3 ? 'rank rank-' + rang : '';
+                    
+                    var dateFormatee = joueur.created_at ? formaterDate(joueur.created_at) : (joueur.date ? formaterDate(joueur.date) : '-');
+                    var rowId = 'row-' + codeMatch + '-' + rang;
+
+                    html += '<tr id="' + rowId + '" class="' + classeMasquee + '" onclick="afficherDetailsJoueur(\'' + rowId + '\', ' + joueur._indexGlobal + ')">';
+                    html += '<td class="' + classeRang + '">' + rang + '</td>';
+                    html += '<td><strong>' + echapperHTML(joueur.nom_joueur) + '</strong></td>';
+                    html += '<td class="date-cell">' + dateFormatee + '</td>';
+                    html += '<td class="score-cell ' + classeRang + '" style="text-align:right; padding-right:15px;">' + echapperHTML(joueur.score_net) + '</td>';
+                    html += '</tr>';
+                });
+
+                html += '</tbody></table>';
+
+                if (listeJoueurs.length > 3) {
+                    var restants = listeJoueurs.length - 3;
+                    html += '<button id="btn-' + codeMatch + '" class="toggle-btn" onclick="basculerAffichageMatch(\'' + codeMatch + '\', ' + listeJoueurs.length + ')">Voir plus (+' + restants + ')</button>';
+                }
+
+                matchSection.innerHTML = html;
+                container.appendChild(matchSection);
+            });
+
+
+        } catch (erreur) {
+            console.error(erreur);
+            container.innerHTML = '<div class="no-data" style="color: #f87171;">Erreur lors du chargement des scores.</div>';
+        }
+    }
+
+
+
+    document.addEventListener('DOMContentLoaded', chargerClassement);
+</script>
 </body>
 </html>
+
